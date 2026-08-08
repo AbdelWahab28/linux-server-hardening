@@ -59,16 +59,17 @@ if [ ! -f "$JAIL_LOCAL" ]; then
     cat > "$JAIL_LOCAL" << 'EOF'
 [DEFAULT]
 
-# Nombre maximum de tentatives avant bannissement
-maxretry = 3
-
-# Fenêtre de temps pendant laquelle les tentatives
-# sont comptabilisées
-findtime = 10m
-
 # Durée du bannissement
 bantime = 24h
 
+# Fenêtre de temps pendant laquelle les tentatives sont comptabilisées
+findtime = 10m
+
+# Nombre maximum de tentatives avant bannissement
+maxretry = 3
+
+#Utiliser ufw pour bloquer
+banaction= ufw
 
 [sshd]
 
@@ -77,6 +78,8 @@ enabled = true
 # Port SSH.
 # Adapter cette valeur si le port SSH a été modifié.
 port = ssh
+filter= sshd
+logpath= /var/log/auth.log
 
 # Utilisation des journaux systemd
 backend = systemd
