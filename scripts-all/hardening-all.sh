@@ -1,133 +1,154 @@
 #!/bin/bash
 
 # ============================================================
+
 # Linux Server Hardening
-# Exécution globale des phases
+
+# Orchestrateur principal
+
 # ============================================================
 
 set -e
 
-PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-echo "============================================================"
-echo "       LINUX SERVER HARDENING"
-echo "       Exécution globale du projet"
-echo "============================================================"
-echo
+PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # ------------------------------------------------------------
+
+# Couleurs
+
+# ------------------------------------------------------------
+
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
+
+# ------------------------------------------------------------
+
 # Vérification des privilèges
+
 # ------------------------------------------------------------
 
 if [ "$EUID" -ne 0 ]; then
-    echo "[ERREUR] Ce script doit être exécuté avec sudo."
-    echo
-    echo "Utilisation :"
-    echo "  sudo ./scripts-all/hardening-all.sh"
+echo -e "${RED}[ERREUR]${NC} Ce script doit être exécuté avec sudo."
+echo "Exemple : sudo ./scripts/hardening-all.sh"
+exit 1
+fi
+
+# ------------------------------------------------------------
+
+# Fonction d'exécution d'une phase
+
+# ------------------------------------------------------------
+
+run_phase() {
+
+```
+local PHASE="$1"
+local DESCRIPTION="$2"
+
+echo
+echo "============================================================"
+echo -e "${BLUE}Phase ${PHASE}${NC} — ${DESCRIPTION}"
+echo "============================================================"
+
+SCRIPT="${PROJECT_DIR}/phase-${PHASE}/hardening.sh"
+
+if [ ! -f "$SCRIPT" ]; then
+    echo -e "${RED}[ERREUR]${NC} Script introuvable : $SCRIPT"
     exit 1
 fi
 
-# ------------------------------------------------------------
-# Présentation
-# ------------------------------------------------------------
-
-echo "Ce script va exécuter les phases du projet dans l'ordre :"
-echo
-echo "  Phase 0 - Préparation du système"
-echo "  Phase 1 - Gestion des comptes et privilèges"
-echo "  Phase 2 - Préparation administrative"
-echo "  Phase 3 - Sécurisation SSH"
-echo "  Phase 4 - Pare-feu UFW"
-echo "  Phase 5 - Protection Fail2ban"
-echo "  Phase 6 - Kernel Hardening"
-echo "  Phase 7 - Audit de sécurité"
-echo
-
-echo "[ATTENTION]"
-echo "Certaines phases modifient la configuration du serveur."
-echo "Vérifiez les README de chaque phase avant de continuer."
-echo
-
-read -r -p "Voulez-vous continuer ? [y/N] " response
-
-if [[ ! "$response" =~ ^[Yy]$ ]]; then
-    echo "Exécution annulée."
-    exit 0
+if [ ! -x "$SCRIPT" ]; then
+    echo -e "${YELLOW}[INFO]${NC} Ajout du droit d'exécution..."
+    chmod +x "$SCRIPT"
 fi
 
+echo -e "${GREEN}[INFO]${NC} Lancement de la phase ${PHASE}..."
+
+"$SCRIPT"
+
 echo
-
-# ------------------------------------------------------------
-# Liste des phases
-# ------------------------------------------------------------
-
-PHASES=(
-    "phase-0"
-    "phase-1"
-    "phase-2"
-    "phase-3"
-    "phase-4"
-    "phase-5"
-    "phase-6"
-    "phase-7"
-)
-
-# ------------------------------------------------------------
-# Vérification des scripts
-# ------------------------------------------------------------
-
-echo "[INFO] Vérification des scripts..."
-
-for phase in "${PHASES[@]}"; do
-
-    SCRIPT="$PROJECT_ROOT/$phase/hardening.sh"
-
-    if [ ! -f "$SCRIPT" ]; then
-        echo "[ERREUR] Script introuvable : $SCRIPT"
-        exit 1
-    fi
-
-    if [ ! -x "$SCRIPT" ]; then
-        chmod +x "$SCRIPT"
-    fi
-
-done
-
-echo "[OK] Tous les scripts sont disponibles."
+echo -e "${GREEN}[OK]${NC} Phase ${PHASE} terminée."
 echo
+```
+
+}
 
 # ------------------------------------------------------------
-# Exécution des phases
-# ------------------------------------------------------------
 
-for phase in "${PHASES[@]}"; do
+# Confirmation avant lancement
 
-    SCRIPT="$PROJECT_ROOT/$phase/hardening.sh"
-
-    echo
-    echo "============================================================"
-    echo " $phase"
-    echo "============================================================"
-    echo
-
-    "$SCRIPT"
-
-    echo
-    echo "[OK] $phase terminée."
-    echo
-
-done
-
-# ------------------------------------------------------------
-# Fin
 # ------------------------------------------------------------
 
 echo
 echo "============================================================"
-echo "      DURCISSEMENT TERMINÉ"
+echo "        LINUX SERVER HARDENING"
+echo "============================================================"
+echo
+echo "Cet orchestrateur va exécuter les phases de durcissement"
+echo "dans l'ordre."
+echo
+echo "Attention : certaines phases modifient la configuration"
+echo "du système, du réseau et des services."
+echo
+echo "Il est recommandé d'exécuter et de valider chaque phase"
+echo "individuellement avant d'utiliser cet orchestrateur."
+echo
+
+read -r -p "Voulez-vous continuer ? [y/N] : " RESPONSE
+
+case "$RESPONSE" in
+y|Y|yes|YES|o|O|oui|Oui)
+;;
+*)
+echo
+echo "Exécution annulée."
+exit 0
+;;
+esac
+
+# ------------------------------------------------------------
+
+# Exécution des phases
+
+# ------------------------------------------------------------
+
+run_phase 0 "Analyse initiale et préparation du système"
+
+run_phase 1 "Gestion et sécurisation des comptes utilisateurs"
+
+run_phase 2 "Préparation et configuration administrative"
+
+run_phase 3 "Sécurisation de l'administration distante avec SSH"
+
+run_phase 4 "Mise en place du pare-feu avec UFW"
+
+run_phase 5 "Protection contre les attaques brute force avec Fail2ban"
+
+run_phase 6 "Durcissement du noyau Linux et des paramètres réseau"
+
+run_phase 7 "Audit de sécurité et contrôle de conformité"
+
+# ------------------------------------------------------------
+
+# Fin
+
+# ------------------------------------------------------------
+
+echo
+echo "============================================================"
+echo -e "${GREEN}        DURCISSEMENT TERMINÉ${NC}"
 echo "============================================================"
 echo
 echo "Toutes les phases ont été exécutées avec succès."
 echo
-echo "Pensez à consulter les résultats des audits de la phase 7."
+echo "Il est recommandé de :"
+echo "  - vérifier l'état des services"
+echo "  - vérifier la connectivité SSH"
+echo "  - vérifier les règles UFW"
+echo "  - consulter les résultats des audits"
+echo "  - redémarrer le serveur si nécessaire"
 echo
+echo "============================================================"
