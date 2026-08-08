@@ -506,7 +506,7 @@ Pour un serveur distant, il est **fortement recommandé de conserver un accès c
 ## 1. Cloner le dépôt
 
 ```bash
-git clone https://github.com/<UTILISATEUR>/linux-server-hardening.git
+git clone git@github.com:AbdelWahab28/linux-server-hardening.git
 ```
 
 Puis :
@@ -815,15 +815,15 @@ Une documentation PDF complète peut également être générée à partir du pr
 
 # 👨‍💻 Auteur
 
-**Abdelwahab Abdourahamane**
+**Abdourahamane AbdelWahab**
 
-Projet personnel de **Linux Server Hardening** orienté :
+Security Engineer | Network & Infrastructure Security | DevSecOps
 
-* Administration Linux ;
-* Cybersécurité ;
-* Infrastructure ;
-* DevSecOps ;
-* Sécurité des serveurs.
+🌐 Portfolio : https://abdel-port-folio-nine.vercel.app/
+
+GitHub : https://github.com/AbdelWahab28
+
+LinkedIn : https://linkedin.com/in/abdelwahab28
 
 ---
 
