@@ -2,58 +2,100 @@
 
 ## 1. Objectif
 
-Cette phase a pour objectif de sécuriser la gestion des comptes utilisateurs et des privilèges administratifs du serveur.
+La gestion des comptes constitue une étape fondamentale du durcissement d'un serveur Linux.
 
-L'objectif principal est d'éviter l'utilisation permanente du compte `root` et de mettre en place un compte utilisateur normal disposant de privilèges administratifs via `sudo`.
+L'objectif de cette phase est de s'assurer que :
 
-Cette étape est particulièrement importante lorsqu'un serveur vient d'être installé et qu'aucun utilisateur administrateur n'a encore été créé.
+* un compte utilisateur administratif existe ;
+* les opérations d'administration ne sont pas réalisées quotidiennement avec le compte `root` ;
+* l'utilisateur administratif dispose uniquement des privilèges nécessaires ;
+* le mécanisme `sudo` est correctement configuré ;
+* l'accès aux privilèges administratifs fonctionne avant de poursuivre le durcissement du serveur.
 
-Le principe appliqué est celui du **moindre privilège** : un utilisateur doit disposer uniquement des privilèges nécessaires à l'administration du système.
+> **Important :** la configuration de SSH n'est pas réalisée dans cette phase. La création et la configuration de l'accès SSH sécurisé sont traitées dans la **Phase 3**.
 
 ---
 
-## 2. Prérequis
+## 2. Pourquoi ne pas travailler directement avec `root` ?
 
-Cette phase nécessite :
+Le compte `root` possède des privilèges complets sur le système.
 
-- un accès local ou console au serveur ;
-- un accès au compte `root` ou à un compte disposant déjà de `sudo` ;
-- une distribution Linux basée sur Debian ;
-- le paquet `sudo` installé.
+Une erreur exécutée avec ce compte peut avoir des conséquences importantes, par exemple :
+
+* suppression accidentelle de fichiers système ;
+* modification de fichiers critiques ;
+* modification de la configuration réseau ;
+* arrêt de services ;
+* modification des permissions ;
+* compromission complète du serveur en cas de vol des identifiants.
+
+L'utilisation d'un compte utilisateur avec `sudo` permet de limiter l'utilisation directe du compte `root`.
+
+Par exemple :
+
+```bash
+sudo systemctl restart nginx
+```
+
+L'utilisateur travaille normalement avec son compte personnel et élève temporairement ses privilèges uniquement lorsqu'une opération administrative le nécessite.
+
+---
+
+# 3. Vérification de l'utilisateur courant
+
+La première étape consiste à identifier l'utilisateur actuellement connecté.
+
+```bash
+whoami
+```
+
+Puis à vérifier ses groupes :
+
+```bash
+groups
+```
+
+On peut également afficher les informations détaillées du compte :
+
+```bash
+id
+```
+
+Exemple :
+
+```text
+uid=1000(abdelwahab) gid=1000(abdelwahab) groups=1000(abdelwahab),27(sudo)
+```
+
+La présence du groupe `sudo` indique que l'utilisateur peut utiliser `sudo`.
+
+---
+
+# 4. Vérification du compte root
+
+Le compte `root` doit exister sur un système Linux, mais son utilisation quotidienne doit être évitée.
 
 Vérification :
 
 ```bash
-sudo --version
+id root
 ```
+
+Exemple :
+
+```text
+uid=0(root) gid=0(root) groups=0(root)
+```
+
+Cette vérification permet de confirmer la présence du compte administrateur système.
+
+> La désactivation de l'accès distant de `root` sera effectuée plus tard dans la Phase 3, lors du durcissement de SSH.
 
 ---
 
-## 3. Vérification des utilisateurs existants
+# 5. Vérification du groupe sudo
 
-Avant de créer ou modifier un compte, il est nécessaire d'identifier les utilisateurs présents sur le système.
-
-### Liste des utilisateurs
-
-```bash
-cat /etc/passwd
-```
-
-Le fichier `/etc/passwd` contient les informations relatives aux comptes locaux du système.
-
-Pour identifier principalement les comptes utilisateurs classiques :
-
-```bash
-awk -F: '$3 >= 1000 && $3 < 65534 {print $1}' /etc/passwd
-```
-
-### Vérification des groupes
-
-```bash
-cat /etc/group
-```
-
-Le groupe `sudo` est particulièrement important puisqu'il permet aux utilisateurs membres d'exécuter des commandes avec des privilèges administratifs.
+Sur les systèmes Debian et dérivés, les utilisateurs administrateurs sont généralement ajoutés au groupe `sudo`.
 
 Vérification :
 
@@ -61,31 +103,41 @@ Vérification :
 getent group sudo
 ```
 
+Exemple :
+
+```text
+sudo:x:27:abdelwahab
+```
+
+On peut également vérifier directement les groupes de l'utilisateur :
+
+```bash
+groups abdelwahab
+```
+
 ---
 
-## 4. Création du compte administrateur
+# 6. Création d'un compte administratif
 
-Si aucun compte administrateur normal n'existe, un compte dédié doit être créé.
+Si aucun compte utilisateur administratif n'existe, il faut en créer un avant de poursuivre le durcissement.
 
-Exemple :
+Création :
 
 ```bash
 sudo adduser admin
 ```
 
-Le système demande alors un mot de passe ainsi que quelques informations complémentaires.
+Le système demande alors :
 
-Les informations facultatives peuvent être laissées vides.
+* un mot de passe ;
+* le nom complet ;
+* différentes informations facultatives.
 
-### Pourquoi créer un compte normal ?
-
-L'objectif n'est pas de remplacer `root` par un autre compte ayant directement tous les privilèges.
-
-Le compte créé reste un utilisateur normal et utilise `sudo` uniquement lorsqu'une opération administrative est nécessaire.
+Les informations personnelles peuvent être laissées vides si elles ne sont pas nécessaires.
 
 ---
 
-## 5. Ajouter l'utilisateur au groupe sudo
+# 7. Ajout de l'utilisateur au groupe sudo
 
 Une fois le compte créé, il est ajouté au groupe `sudo` :
 
@@ -93,7 +145,18 @@ Une fois le compte créé, il est ajouté au groupe `sudo` :
 sudo usermod -aG sudo admin
 ```
 
-Vérification :
+L'option `-aG` signifie :
+
+* `-a` : ajouter sans supprimer les groupes existants ;
+* `-G` : spécifier le ou les groupes supplémentaires.
+
+Il est important d'utiliser `-aG` plutôt que simplement `-G`, car l'utilisation incorrecte de `-G` peut remplacer les groupes secondaires existants de l'utilisateur.
+
+---
+
+# 8. Vérification de l'appartenance au groupe sudo
+
+Après l'ajout :
 
 ```bash
 groups admin
@@ -105,73 +168,77 @@ ou :
 id admin
 ```
 
-Le groupe `sudo` doit apparaître dans la liste.
+On doit retrouver le groupe `sudo`.
 
 Exemple :
 
 ```text
-uid=1000(admin) gid=1000(admin) groups=1000(admin),27(sudo)
+uid=1001(admin) gid=1001(admin) groups=1001(admin),27(sudo)
 ```
 
 ---
 
-## 6. Vérification des privilèges
+# 9. Prise en compte du nouveau groupe
 
-Une nouvelle session doit être ouverte après l'ajout de l'utilisateur au groupe `sudo`.
+Les groupes d'un utilisateur sont chargés lors de l'ouverture de sa session.
 
-Après reconnexion :
+Après avoir ajouté l'utilisateur au groupe `sudo`, il est donc recommandé de fermer puis de rouvrir la session.
+
+On peut également utiliser :
+
+```bash
+su - admin
+```
+
+Puis vérifier :
 
 ```bash
 groups
 ```
 
-Puis :
-
-```bash
-sudo -l
-```
-
-Cette commande permet d'afficher les privilèges `sudo` accordés à l'utilisateur.
-
 ---
 
-## 7. Test de sudo
+# 10. Test de l'accès sudo
 
-Pour vérifier que l'utilisateur peut effectivement obtenir des privilèges administratifs :
+Le fonctionnement de `sudo` doit être vérifié avant de continuer le projet.
+
+Depuis le compte administratif :
+
+```bash
+sudo -v
+```
+
+Puis :
 
 ```bash
 sudo whoami
 ```
 
-Résultat attendu :
+Le résultat attendu est :
 
 ```text
 root
 ```
 
-Cela confirme que `sudo` fonctionne correctement.
+Cela confirme que l'utilisateur possède bien les privilèges administratifs via `sudo`.
 
-L'utilisateur reste néanmoins connecté avec son compte normal.
-
-Vérification :
+Un autre test possible :
 
 ```bash
-whoami
+sudo id
 ```
 
-Le résultat doit être le nom de l'utilisateur et non `root`.
+Le résultat doit indiquer :
+
+```text
+uid=0(root)
+```
 
 ---
 
-## 8. Vérification de la configuration sudo
+# 11. Vérification de la configuration sudo
 
-La configuration de `sudo` se trouve principalement dans :
-
-```text
-/etc/sudoers
-```
-
-La syntaxe peut être vérifiée avec :
+On peut également vérifier que la configuration de `sudo` ne contient pas d'erreur de syntaxe :
 
 ```bash
 sudo visudo -c
@@ -183,85 +250,97 @@ Résultat attendu :
 /etc/sudoers: parsed OK
 ```
 
-L'utilisation de `visudo` est recommandée pour toute modification du fichier `/etc/sudoers`, car une erreur de syntaxe peut empêcher l'utilisation de `sudo`.
+Cette vérification permet de détecter une erreur dans le fichier `/etc/sudoers` avant de poursuivre le projet.
 
 ---
 
-## 9. Principe du moindre privilège
+# 12. Principe de moindre privilège
 
-La configuration mise en place respecte le principe du moindre privilège.
+Cette phase applique le principe de **moindre privilège**.
 
-L'utilisateur :
+L'utilisateur travaille avec un compte normal et utilise `sudo` uniquement lorsqu'une opération administrative est nécessaire.
 
-- n'est pas connecté directement en tant que `root` ;
-- possède son propre compte ;
-- utilise `sudo` lorsqu'une opération administrative est nécessaire ;
-- conserve une traçabilité des commandes administratives exécutées via `sudo`.
-
-Le fonctionnement peut être représenté ainsi :
+Architecture obtenue :
 
 ```text
-Utilisateur normal
-       |
-       | sudo
-       v
-Privilèges administrateur
-       |
-       v
-     root
+                    SERVEUR LINUX
+                         │
+          ┌──────────────┴──────────────┐
+          │                             │
+      root (UID 0)              utilisateur admin
+                                      │
+                                      │ sudo
+                                      ▼
+                                   root
 ```
+
+Le compte utilisateur devient ainsi le compte utilisé pour les opérations quotidiennes et administratives.
 
 ---
 
-## 10. Vérifications finales
+# 13. Ce qui n'est volontairement pas réalisé dans cette phase
 
-Avant de passer à la phase suivante, les vérifications suivantes doivent être validées :
+Les éléments suivants sont volontairement exclus de cette phase :
+
+* désactivation de la connexion SSH de `root` ;
+* désactivation de l'authentification SSH par mot de passe ;
+* authentification SSH par clé ;
+* changement du port SSH ;
+* configuration du serveur SSH.
+
+Ces opérations seront réalisées dans :
+
+**Phase 3 — Durcissement du service SSH**
+
+---
+
+# 14. Résultat attendu
+
+À la fin de cette phase :
+
+* un utilisateur administratif existe ;
+* l'utilisateur n'est pas utilisé comme `root` ;
+* l'utilisateur appartient au groupe `sudo` ;
+* `sudo` fonctionne correctement ;
+* la configuration `sudo` est valide ;
+* le serveur est prêt pour la sécurisation de SSH dans la phase suivante.
+
+---
+
+# 15. Commandes principales utilisées
 
 ```bash
 whoami
 id
 groups
-sudo -l
+id root
+getent group sudo
+
+sudo adduser admin
+sudo usermod -aG sudo admin
+
+su - admin
+
+sudo -v
 sudo whoami
+sudo id
+
 sudo visudo -c
 ```
 
-Résultats attendus :
-
-- [OK] Un compte utilisateur normal existe
-- [OK] Le compte appartient au groupe `sudo`
-- [OK] `sudo` fonctionne
-- [OK] L'utilisateur n'est pas connecté en tant que `root`
-- [OK] La configuration `sudo` est valide
-
 ---
 
-## 11. Automatisation
+# 16. Script d'automatisation
 
-Le fichier `hardening.sh` automatise les opérations nécessaires à cette phase.
+Le fichier `hardening.sh` automatise les opérations principales de cette phase.
 
-Exécution :
+Utilisation :
 
 ```bash
 chmod +x hardening.sh
-```
-
-Puis :
-
-```bash
 sudo ./hardening.sh
 ```
 
-Le script vérifie d'abord l'environnement puis demande le nom du compte à créer.
+Le script demande le nom du compte administratif à créer ou à utiliser.
 
-Il évite de recréer un utilisateur qui existe déjà.
-
----
-
-## 12. Résultat de la phase
-
-À la fin de cette phase, le serveur dispose d'un compte utilisateur normal pouvant effectuer les opérations administratives via `sudo`.
-
-Aucune modification de la configuration SSH n'est effectuée durant cette phase.
-
-Le durcissement de SSH sera réalisé dans la phase suivante.
+> Le script ne modifie volontairement aucune configuration SSH. Cette responsabilité appartient à la Phase 3.
