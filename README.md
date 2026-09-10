@@ -817,7 +817,7 @@ Une documentation PDF complète peut également être générée à partir du pr
 
 **Abdourahamane AbdelWahab**
 
-Security Engineer | Network & Infrastructure Security | DevSecOps
+ Security Engineer | Cybersecurity
 
 🌐 Portfolio : https://abdel-port-folio-nine.vercel.app/
 
